@@ -1,0 +1,3 @@
+// components/ui — Shared / generic UI components go here
+// e.g. Button, Input, Modal, Avatar, Spinner, etc.
+export {};

@@ -1,0 +1,3 @@
+// components/chat — Chat UI components go here
+// e.g. ChatList, ChatWindow, MessageBubble, MessageInput, etc.
+export {};
