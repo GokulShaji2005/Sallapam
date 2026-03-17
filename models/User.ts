@@ -1,24 +1,26 @@
-import mongoose, { Document, Schema } from "mongoose";
+// models/User.ts
+import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IUser extends Document {
-  username: string;
-  email: string;
-  passwordHash: string;
-  avatarUrl?: string;
-  publicKey?: string; // Phase 4: E2E encryption
-  createdAt: Date;
-  updatedAt: Date;
+  name: string
+  email: string
+  phone: string
+  passwordHash: string
+  publicKey: string
+  firebaseUid: string
+  isVerified: boolean
+  createdAt: Date
+  updatedAt: Date
 }
 
-const UserSchema = new Schema<IUser>(
-  {
-    username: { type: String, required: true, unique: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
-    passwordHash: { type: String, required: true },
-    avatarUrl: { type: String, default: "" },
-    publicKey: { type: String, default: "" }, // Phase 4
-  },
-  { timestamps: true }
-);
+const UserSchema = new Schema<IUser>({
+  name: { type: String, required: true, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true },
+  phone: { type: String, required: true, unique: true },
+  passwordHash: { type: String, required: true },
+  publicKey: { type: String, required: true },
+  firebaseUid: { type: String, required: true, unique: true },
+  isVerified: { type: Boolean, default: false },
+}, { timestamps: true })
 
-export const User = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
+export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema)

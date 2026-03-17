@@ -1,24 +1,22 @@
-import mongoose, { Document, Schema } from "mongoose";
+// models/Chat.ts
+import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IChat extends Document {
-  name?: string;
-  isGroup: boolean;
-  participants: mongoose.Types.ObjectId[];
-  adminIds: mongoose.Types.ObjectId[];
-  lastMessage?: mongoose.Types.ObjectId;
-  createdAt: Date;
-  updatedAt: Date;
+  type: 'direct' | 'group'
+  memberIds: mongoose.Types.ObjectId[]
+  groupName?: string
+  adminId?: mongoose.Types.ObjectId
+  lastMessageId?: mongoose.Types.ObjectId
+  createdAt: Date
+  updatedAt: Date
 }
 
-const ChatSchema = new Schema<IChat>(
-  {
-    name: { type: String, default: "" },
-    isGroup: { type: Boolean, default: false },
-    participants: [{ type: Schema.Types.ObjectId, ref: "User", required: true }],
-    adminIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
-    lastMessage: { type: Schema.Types.ObjectId, ref: "Message" },
-  },
-  { timestamps: true }
-);
+const ChatSchema = new Schema<IChat>({
+  type: { type: String, enum: ['direct', 'group'], required: true },
+  memberIds: [{ type: Schema.Types.ObjectId, ref: 'User', required: true }],
+  groupName: { type: String },
+  adminId: { type: Schema.Types.ObjectId, ref: 'User' },
+  lastMessageId: { type: Schema.Types.ObjectId, ref: 'Message' },
+}, { timestamps: true })
 
-export const Chat = mongoose.models.Chat || mongoose.model<IChat>("Chat", ChatSchema);
+export default mongoose.models.Chat || mongoose.model<IChat>('Chat', ChatSchema)

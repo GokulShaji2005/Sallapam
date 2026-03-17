@@ -1,75 +1,58 @@
-// Shared TypeScript types for the ChatApp
+// types/index.ts
 
-// ─── User ────────────────────────────────────────────────────────────────────
-export interface User {
-  _id: string;
-  username: string;
-  email: string;
-  avatarUrl?: string;
-  publicKey?: string; // Phase 4: E2E encryption
-  createdAt: string;
-  updatedAt: string;
+export interface ApiResponse<T = null> {
+  success: boolean
+  data?: T
+  error?: string
 }
 
-// ─── Chat ─────────────────────────────────────────────────────────────────────
-export interface Chat {
-  _id: string;
-  name?: string;
-  isGroup: boolean;
-  participants: User[];
-  adminIds: string[];
-  lastMessage?: Message;
-  createdAt: string;
-  updatedAt: string;
+export interface AuthUser {
+  userId: string
+  email: string
+  name: string
 }
 
-// ─── Message ──────────────────────────────────────────────────────────────────
-export type MessageType = "text" | "image" | "file" | "system";
-
-export interface Message {
-  _id: string;
-  chatId: string;
-  senderId: User | string;
-  content: string;
-  nonce?: string; // Phase 4
-  type: MessageType;
-  readBy: string[];
-  createdAt: string;
-  updatedAt: string;
+export interface PublicUser {
+  _id: string
+  name: string
+  phone: string
+  publicKey: string
+  isOnline?: boolean
 }
 
-// ─── Invitation ───────────────────────────────────────────────────────────────
-export type InvitationStatus = "pending" | "accepted" | "declined";
-
-export interface Invitation {
-  _id: string;
-  fromUserId: User | string;
-  toUserId: User | string;
-  chatId?: string;
-  status: InvitationStatus;
-  createdAt: string;
-  updatedAt: string;
+export interface ChatPreview {
+  _id: string
+  type: 'direct' | 'group'
+  groupName?: string
+  members: PublicUser[]
+  lastMessage?: {
+    encryptedContent: string
+    nonce: string
+    senderId: string
+    sentAt: string
+  }
+  updatedAt: string
 }
 
-// ─── Key ──────────────────────────────────────────────────────────────────────
-export interface Key {
-  _id: string;
-  userId: string;
-  publicKey: string;
-  encryptedPrivateKey?: string;
-  createdAt: string;
-  updatedAt: string;
+export interface MessagePayload {
+  _id: string
+  chatId: string
+  senderId: string
+  encryptedContent: string
+  nonce: string
+  status: 'sent' | 'delivered' | 'read'
+  isLocked: boolean
+  sentAt: string
 }
 
-// ─── API Response ─────────────────────────────────────────────────────────────
-export interface ApiResponse<T = unknown> {
-  data?: T;
-  message?: string;
-  error?: string;
+// Socket event payloads
+export interface SendMessagePayload {
+  chatId: string
+  encryptedContent: string
+  nonce: string
 }
 
-// ─── JWT Payload ──────────────────────────────────────────────────────────────
-export interface JwtPayload {
-  userId: string;
-  email: string;
+export interface TypingPayload {
+  chatId: string
+  userId: string
 }
