@@ -1,10 +1,94 @@
-import { NextRequest, NextResponse } from "next/server";
+// app/api/auth/login/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { connectToDatabase } from '@/lib/mongoose'
+import User from '@/models/User'
+import bcrypt from 'bcryptjs'
+import { signToken, cookieOptions, COOKIE_NAME } from '@/lib/auth'
+import { redis } from '@/lib/redis'
+import { z } from 'zod'
+
+const LoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+})
 
 export async function POST(req: NextRequest) {
   try {
-    // TODO: Implement logout logic (clear cookies/invalidate token)
-    return NextResponse.json({ message: "Logged out" }, { status: 200 });
+    await connectToDatabase()
+
+    // Rate limiting — max 5 failed attempts per email per 15 minutes
+    const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
+    const rateLimitKey = `login:attempts:${ip}`
+    const attempts = await redis.get<number>(rateLimitKey) ?? 0
+
+    if (attempts >= 5) {
+      return NextResponse.json(
+        { success: false, error: 'Too many attempts — wait 15 minutes' },
+        { status: 429 }
+      )
+    }
+
+    const body = await req.json()
+    const parsed = LoginSchema.safeParse(body)
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password format' },
+        { status: 400 }
+      )
+    }
+
+    const { email, password } = parsed.data
+
+    // Find user
+    const user = await User.findOne({ email })
+    if (!user) {
+      // Increment attempts even on "user not found" to prevent email enumeration
+      await redis.set(rateLimitKey, attempts + 1, { ex: 60 * 15 })
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
+
+    // Compare password
+    const isValid = await bcrypt.compare(password, user.passwordHash)
+    if (!isValid) {
+      await redis.set(rateLimitKey, attempts + 1, { ex: 60 * 15 })
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
+
+    // Clear rate limit on successful login
+    await redis.del(rateLimitKey)
+
+    // Issue JWT
+    const token = signToken({
+      userId: user._id.toString(),
+      email: user.email,
+      name: user.name,
+    })
+
+    const response = NextResponse.json({
+      success: true,
+      data: {
+        userId: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        publicKey: user.publicKey,
+      }
+    })
+
+    response.cookies.set(COOKIE_NAME, token, cookieOptions)
+    return response
+
   } catch (error) {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    console.error('Login error:', error)
+    return NextResponse.json(
+      { success: false, error: 'Server error' },
+      { status: 500 }
+    )
   }
 }
