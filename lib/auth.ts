@@ -2,7 +2,8 @@
 import jwt from 'jsonwebtoken'
 import { cookies } from 'next/headers'
 
-const JWT_SECRET = process.env.JWT_SECRET!
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) throw new Error('JWT_SECRET env variable is not set — check .env.local')
 const COOKIE_NAME = 'auth-token'
 
 export interface JWTPayload {
@@ -13,13 +14,13 @@ export interface JWTPayload {
 
 // Sign a new token
 export function signToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+  return jwt.sign(payload, JWT_SECRET!, { expiresIn: '7d' })
 }
 
 // Verify a token — returns payload or null
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload
+    return jwt.verify(token, JWT_SECRET!) as JWTPayload
   } catch {
     return null
   }
@@ -37,7 +38,7 @@ export async function getAuthUser(): Promise<JWTPayload | null> {
 export const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  sameSite: 'strict' as const,
   maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
   path: '/',
 }

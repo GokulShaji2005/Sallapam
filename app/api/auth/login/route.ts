@@ -14,7 +14,7 @@ const LoginSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    await connectDB()
+    await connectToDatabase()
 
     // Rate limiting — max 5 failed attempts per email per 15 minutes
     const ip = req.headers.get('x-forwarded-for') ?? 'unknown'

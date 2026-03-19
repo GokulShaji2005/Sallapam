@@ -6,8 +6,8 @@ export interface IUser extends Document {
   email: string
   phone: string
   passwordHash: string
-  publicKey: string
-  firebaseUid: string
+  publicKey?: string       // optional — add when E2E encryption is enabled
+  firebaseUid?: string     // optional — add when Firebase OTP is enabled
   isVerified: boolean
   createdAt: Date
   updatedAt: Date
@@ -18,8 +18,8 @@ const UserSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true, lowercase: true },
   phone: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true },
-  publicKey: { type: String, required: true },
-  firebaseUid: { type: String, required: true, unique: true },
+  publicKey: { type: String, required: false },          // re-enable when E2E encryption is added
+  firebaseUid: { type: String, required: false, unique: true, sparse: true }, // re-enable when Firebase OTP is added
   isVerified: { type: Boolean, default: false },
 }, { timestamps: true })
 

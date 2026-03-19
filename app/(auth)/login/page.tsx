@@ -2,7 +2,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { loadPrivateKey } from '@/lib/crypto'
+// import { loadPrivateKey } from '@/lib/crypto'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,15 +20,16 @@ export default function LoginPage() {
         body: JSON.stringify(form),
       })
       const data = await res.json()
+      console.log(data)
       if (!data.success) throw new Error(data.error)
 
       // Load the private key from localStorage using their password
       // This just verifies it's accessible — it stays in memory during the session
-      const privateKey = await loadPrivateKey(form.password)
-      if (!privateKey) {
-        // Key missing means they're on a new device — handle gracefully
-        console.warn('Private key not found in localStorage — new device?')
-      }
+      // const privateKey = await loadPrivateKey(form.password)
+      // if (!privateKey) {
+      //   // Key missing means they're on a new device — handle gracefully
+      //   console.warn('Private key not found in localStorage — new device?')
+      // }
 
       router.push('/chat')
     } catch (e: any) {
