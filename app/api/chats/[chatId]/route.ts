@@ -42,9 +42,8 @@ export async function GET(
   }
 
   // Membership check — ensure requesting user is in this chat
-  const isMember = (chat.memberIds as any[]).some(
-    (m) => m._id.toString() === authUser.userId
-  )
+  const members = chat.memberIds as unknown as Array<{ _id: mongoose.Types.ObjectId }>
+  const isMember = members.some((member) => member._id.toString() === authUser.userId)
   if (!isMember) {
     return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
   }

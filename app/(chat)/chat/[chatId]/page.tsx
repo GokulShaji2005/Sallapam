@@ -49,6 +49,7 @@ export default function ChatPage() {
   const [loadingMsgs, setLoadingMsgs] = useState(true)
   const [sending, setSending] = useState(false)
   const [text, setText] = useState('')
+  const [sendError, setSendError] = useState('')
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
   const [currentUserId, setCurrentUserId] = useState('')
 
@@ -57,6 +58,19 @@ export default function ChatPage() {
 
   // Socket — join/leave room, sendTyping, markDelivered
   const { socket, isConnected, sendTyping, markDelivered } = useChat(chatId)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data?._id) {
+          setCurrentUserId(json.data._id)
+        }
+      })
+      .catch(() => {
+        // Non-fatal: messages still load, but ownership alignment may be degraded.
+      })
+  }, [])
 
   // ── Fetch chat metadata ──────────────────────────────────────────────────
   useEffect(() => {
@@ -131,7 +145,7 @@ export default function ChatPage() {
     const trimmed = text.trim()
     if (!trimmed || sending) return
     setSending(true)
-    setText('')
+    setSendError('')
     try {
       const res = await fetch('/api/messages', {
         method: 'POST',
@@ -143,7 +157,14 @@ export default function ChatPage() {
         }),
       })
       const json = await res.json()
-      if (json.success) setMessages(prev => [...prev, json.data])
+      if (!json.success) {
+        throw new Error(json.error ?? 'Failed to send message')
+      }
+      setMessages(prev => [...prev, json.data])
+      setText('')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to send message'
+      setSendError(message)
     } finally {
       setSending(false)
     }
@@ -152,6 +173,7 @@ export default function ChatPage() {
   // Typing indicator — debounced emit
   function handleTyping(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setText(e.target.value)
+    if (sendError) setSendError('')
     sendTyping()
     if (typingTimer.current) clearTimeout(typingTimer.current)
   }
@@ -276,6 +298,11 @@ export default function ChatPage() {
 
       {/* ── Input bar ── */}
       <footer className="flex-shrink-0 px-4 py-3" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)' }}>
+        {sendError && (
+          <p className="mb-2 text-xs" style={{ color: '#ef4444' }}>
+            {sendError}
+          </p>
+        )}
         <form onSubmit={handleSend} className="flex items-end gap-3">
           <textarea
             value={text}

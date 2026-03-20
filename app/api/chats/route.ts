@@ -6,6 +6,10 @@ import Chat from '@/models/Chat'
 import { z } from 'zod'
 import mongoose from 'mongoose'
 
+function buildDirectKey(a: mongoose.Types.ObjectId, b: mongoose.Types.ObjectId): string {
+  return [a.toString(), b.toString()].sort().join(':')
+}
+
 const CreateChatSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('direct'),
@@ -75,20 +79,21 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check if a direct chat already exists between these two users
-    const existing = await Chat.findOne({
-      type: 'direct',
-      memberIds: { $all: [currentUserId, otherUserId], $size: 2 },
-    })
-
-    if (existing) {
-      return NextResponse.json({ success: true, data: { chatId: existing._id } })
-    }
-
-    const chat = await Chat.create({
-      type: 'direct',
-      memberIds: [currentUserId, otherUserId],
-    })
+    const directKey = buildDirectKey(currentUserId, otherUserId)
+    const chat = await Chat.findOneAndUpdate(
+      { directKey },
+      {
+        $setOnInsert: {
+          type: 'direct',
+          memberIds: [currentUserId, otherUserId],
+          directKey,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+      }
+    )
 
     return NextResponse.json({ success: true, data: { chatId: chat._id } }, { status: 201 })
   }

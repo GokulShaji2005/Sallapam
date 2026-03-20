@@ -133,12 +133,13 @@ export async function POST(req: NextRequest) {
 
   // Non-blocking socket server notification — failure here must NOT fail the response
   const socketUrl = process.env.SOCKET_SERVER_URL
-  if (socketUrl) {
+  const emitSecret = process.env.EMIT_SECRET
+  if (socketUrl && emitSecret) {
     fetch(`${socketUrl}/emit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.EMIT_SECRET ?? ''}`,
+        'Authorization': `Bearer ${emitSecret}`,
       },
       body: JSON.stringify({
         event: 'message:receive',

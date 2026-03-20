@@ -24,9 +24,15 @@ export async function GET(
 
   await connectToDatabase()
 
+  const isSelf = authUser.userId === userId
+
+  const projection = isSelf
+    ? { _id: 1, name: 1, email: 1, phone: 1, publicKey: 1, isVerified: 1 }
+    : { _id: 1, name: 1, publicKey: 1 }
+
   const user = await User.findById(
     userId,
-    { _id: 1, name: 1, email: 1, phone: 1, publicKey: 1, isVerified: 1 } // safe fields only
+    projection
   ).lean()
 
   if (!user) {

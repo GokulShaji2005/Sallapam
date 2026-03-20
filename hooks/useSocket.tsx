@@ -28,51 +28,83 @@ const SocketContext = createContext<SocketContextValue>({
 // Wrap your chat layout with <SocketProvider token={jwtToken}>
 
 interface SocketProviderProps {
-  token: string | null
+  token?: string | null
   children: ReactNode
 }
 
 export function SocketProvider({ token, children }: SocketProviderProps) {
   const socketRef = useRef<Socket | null>(null)
+  const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [fetchedToken, setFetchedToken] = useState<string | null>(null)
+  const activeToken = token ?? fetchedToken
+
+  useEffect(() => {
+    if (token) return
+
+    let isMounted = true
+    fetch('/api/auth/socket-token', { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) return null
+        const json = await res.json()
+        return json.success ? (json.data?.token ?? null) : null
+      })
+      .then((fetchedToken) => {
+        if (!isMounted) return
+        setFetchedToken(fetchedToken)
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setFetchedToken(null)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [token])
 
   useEffect(() => {
     // Don't connect without a token — user isn't logged in
-    if (!token) {
+    if (!activeToken) {
       socketRef.current?.disconnect()
       socketRef.current = null
-      setIsConnected(false)
       return
     }
 
     // Disconnect previous socket if token changed (e.g. re-login)
-    if (socketRef.current) {
-      socketRef.current.disconnect()
-    }
+    socketRef.current?.disconnect()
 
-    const socket = io(SOCKET_URL, {
-      auth: { token }, // passed to JWT middleware on the server
+    const nextSocket = io(SOCKET_URL, {
+      auth: { token: activeToken }, // passed to JWT middleware on the server
       withCredentials: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
     })
 
-    socketRef.current = socket
+    socketRef.current = nextSocket
 
-    socket.on('connect', () => setIsConnected(true))
-    socket.on('disconnect', () => setIsConnected(false))
-    socket.on('connect_error', (err) => {
+    nextSocket.on('connect', () => {
+      setIsConnected(true)
+      setSocket(nextSocket)
+    })
+    nextSocket.on('disconnect', () => {
+      setIsConnected(false)
+      setSocket((prev) => (prev === nextSocket ? null : prev))
+    })
+    nextSocket.on('connect_error', (err) => {
       console.error('[socket] Connection error:', err.message)
     })
 
     return () => {
-      socket.disconnect()
-      setIsConnected(false)
+      nextSocket.disconnect()
+      if (socketRef.current === nextSocket) {
+        socketRef.current = null
+      }
     }
-  }, [token]) // reconnect whenever the token changes
+  }, [activeToken]) // reconnect whenever the token changes
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, isConnected }}>
+    <SocketContext.Provider value={{ socket, isConnected }}>
       {children}
     </SocketContext.Provider>
   )

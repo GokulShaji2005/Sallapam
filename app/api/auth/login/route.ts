@@ -7,6 +7,14 @@ import { signToken, cookieOptions, COOKIE_NAME } from '@/lib/auth'
 import { redis } from '@/lib/redis'
 import { z } from 'zod'
 
+function getClientFingerprint(req: NextRequest): string {
+  const forwardedFor = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  const realIp = req.headers.get('x-real-ip')?.trim()
+  const userAgent = req.headers.get('user-agent')?.trim() ?? 'unknown-agent'
+  const ip = forwardedFor || realIp || 'unknown-ip'
+  return `${ip}:${userAgent}`
+}
+
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -15,18 +23,6 @@ const LoginSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     await connectToDatabase()
-
-    // Rate limiting — max 5 failed attempts per email per 15 minutes
-    const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
-    const rateLimitKey = `login:attempts:${ip}`
-    const attempts = await redis.get<number>(rateLimitKey) ?? 0
-
-    if (attempts >= 5) {
-      return NextResponse.json(
-        { success: false, error: 'Too many attempts — wait 15 minutes' },
-        { status: 429 }
-      )
-    }
 
     const body = await req.json()
     const parsed = LoginSchema.safeParse(body)
@@ -39,6 +35,16 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, password } = parsed.data
+    const clientFingerprint = getClientFingerprint(req)
+    const rateLimitKey = `login:attempts:${email.toLowerCase()}:${clientFingerprint}`
+    const attempts = await redis.get<number>(rateLimitKey) ?? 0
+
+    if (attempts >= 5) {
+      return NextResponse.json(
+        { success: false, error: 'Too many attempts — wait 15 minutes' },
+        { status: 429 }
+      )
+    }
 
     // Find user
     const user = await User.findOne({ email })

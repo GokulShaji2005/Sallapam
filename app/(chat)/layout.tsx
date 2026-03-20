@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
-import { verifyToken } from '@/lib/auth'
 import EmailVerificationBanner from '@/components/EmailVerificationBanner'
+import { SocketProvider } from '@/hooks/useSocket'
 
 async function getIsVerified(): Promise<boolean> {
   try {
@@ -21,9 +21,9 @@ async function getIsVerified(): Promise<boolean> {
 export default async function ChatLayout({ children }: { children: React.ReactNode }) {
   const isVerified = await getIsVerified()
   return (
-    <>
+    <SocketProvider>
       <EmailVerificationBanner isVerified={isVerified} />
       {children}
-    </>
+    </SocketProvider>
   )
 }

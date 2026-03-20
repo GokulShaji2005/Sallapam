@@ -1,17 +1,31 @@
 // middleware.ts  (root of project, next to package.json)
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifyToken } from '@/lib/auth'
+import { jwtVerify } from 'jose'
+
+const COOKIE_NAME = 'auth-token'
 
 // Pages that require login
 const protectedRoutes = ['/chat', '/profile', '/settings']
 // Pages that logged-in users shouldn't see
 const authRoutes = ['/login', '/signup']
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value
+export async function middleware(request: NextRequest) {
+  const token = request.cookies.get(COOKIE_NAME)?.value
   const { pathname } = request.nextUrl
-  const isLoggedIn = token ? !!verifyToken(token) : false
+
+  let isLoggedIn = false
+
+  if (token) {
+    try {
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET!)
+      await jwtVerify(token, secret)
+      isLoggedIn = true
+    } catch {
+      // token invalid or expired
+      isLoggedIn = false
+    }
+  }
 
   // Redirect logged-out users away from protected pages
   if (protectedRoutes.some(r => pathname.startsWith(r)) && !isLoggedIn) {

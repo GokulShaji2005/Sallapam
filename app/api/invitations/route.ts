@@ -9,6 +9,10 @@ import { sendEmail } from '@/lib/email'
 import { z } from 'zod'
 import mongoose from 'mongoose'
 
+function buildDirectKey(a: mongoose.Types.ObjectId, b: mongoose.Types.ObjectId): string {
+  return [a.toString(), b.toString()].sort().join(':')
+}
+
 const InviteSchema = z.object({
   email: z.string().email(),
 })
@@ -54,29 +58,28 @@ export async function POST(req: NextRequest) {
 
   if (existingUser) {
     const otherUserId = existingUser._id as mongoose.Types.ObjectId
+    const directKey = buildDirectKey(currentUserId, otherUserId)
 
-    // Check if a direct chat already exists
-    const existingChat = await Chat.findOne({
-      type: 'direct',
-      memberIds: { $all: [currentUserId, otherUserId], $size: 2 },
-    }).lean()
+    const existingChat = await Chat.findOne({ directKey }, { _id: 1 }).lean()
 
-    if (existingChat) {
-      return NextResponse.json({
-        success: true,
-        data: { chatId: existingChat._id, alreadyExists: true },
-      })
-    }
-
-    // No chat yet — create one
-    const newChat = await Chat.create({
-      type: 'direct',
-      memberIds: [currentUserId, otherUserId],
-    })
+    const newChat = await Chat.findOneAndUpdate(
+      { directKey },
+      {
+        $setOnInsert: {
+          type: 'direct',
+          memberIds: [currentUserId, otherUserId],
+          directKey,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+      }
+    )
 
     return NextResponse.json({
       success: true,
-      data: { chatId: newChat._id, alreadyExists: false },
+      data: { chatId: newChat._id, alreadyExists: !!existingChat },
     }, { status: 201 })
   }
 

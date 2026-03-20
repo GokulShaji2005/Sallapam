@@ -9,6 +9,14 @@ import { redis } from '@/lib/redis'
 import { sendEmail } from '@/lib/email'
 import { z } from 'zod'
 
+function getClientFingerprint(req: NextRequest): string {
+  const forwardedFor = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  const realIp = req.headers.get('x-real-ip')?.trim()
+  const userAgent = req.headers.get('user-agent')?.trim() ?? 'unknown-agent'
+  const ip = forwardedFor || realIp || 'unknown-ip'
+  return `${ip}:${userAgent}`
+}
+
 // Validate the request body shape
 const SignupSchema = z.object({
   name: z.string().min(2).max(50),
@@ -20,18 +28,6 @@ const SignupSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limiting — max 5 signup attempts per IP per hour
-    const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
-    const rateLimitKey = `signup:attempts:${ip}`
-    const attempts = await redis.get<number>(rateLimitKey) ?? 0
-
-    if (attempts >= 5) {
-      return NextResponse.json(
-        { success: false, error: 'Too many signup attempts — wait 1 hour' },
-        { status: 429 }
-      )
-    }
-
     await connectToDatabase()
 
     const body = await req.json()
@@ -45,6 +41,16 @@ export async function POST(req: NextRequest) {
     }
 
     const { name, email, password } = parsed.data
+    const clientFingerprint = getClientFingerprint(req)
+    const rateLimitKey = `signup:attempts:${email.toLowerCase()}:${clientFingerprint}`
+    const attempts = await redis.get<number>(rateLimitKey) ?? 0
+
+    if (attempts >= 5) {
+      return NextResponse.json(
+        { success: false, error: 'Too many signup attempts — wait 1 hour' },
+        { status: 429 }
+      )
+    }
 
     // Normalise phone — strip all non-digit characters so "+91 98765 43210" and "9876543210" match
     const phone = parsed.data.phone.replace(/\D/g, '')

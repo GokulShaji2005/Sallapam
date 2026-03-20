@@ -50,6 +50,19 @@ export default function ChatListPage() {
   const [showModal, setShowModal] = useState(false)
   const [currentUserId, setCurrentUserId] = useState('')
 
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me')
+      if (!res.ok) return
+      const json = await res.json()
+      if (json.success && json.data?._id) {
+        setCurrentUserId(json.data._id)
+      }
+    } catch {
+      // Non-fatal: chat list still loads; names may fallback until identity is available.
+    }
+  }, [])
+
   const fetchChats = useCallback(async () => {
     try {
       const res = await fetch('/api/chats')
@@ -57,8 +70,9 @@ export default function ChatListPage() {
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
       setChats(json.data)
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to load chats')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load chats'
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -66,8 +80,9 @@ export default function ChatListPage() {
 
   // Get current user from cookie-backed endpoint (reuse login response pattern)
   useEffect(() => {
+    fetchCurrentUser()
     fetchChats()
-  }, [fetchChats])
+  }, [fetchChats, fetchCurrentUser])
 
   const initials = (name: string) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 

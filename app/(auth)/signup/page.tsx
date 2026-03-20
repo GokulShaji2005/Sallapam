@@ -40,8 +40,9 @@ export default function SignupPage() {
 
       // Future: await savePrivateKey(privateKey, form.password)
       router.push('/chat')
-    } catch (e: any) {
-      setError(e.message ?? 'Signup failed')
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Signup failed'
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -66,6 +67,7 @@ export default function SignupPage() {
             placeholder="Full name"
             value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            required
           />
           <input
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-violet-400 placeholder:text-gray-500"
@@ -73,6 +75,7 @@ export default function SignupPage() {
             type="email"
             value={form.email}
             onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+            required
           />
           <div className="relative">
             <input
@@ -81,6 +84,7 @@ export default function SignupPage() {
               type="tel"
               value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+              required
             />
             {/* Small badge to indicate phone is not verified yet */}
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
@@ -93,10 +97,12 @@ export default function SignupPage() {
             type="password"
             value={form.password}
             onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+            required
+            minLength={8}
           />
 
           <button
-            onClick={handleSignUp}
+            type="submit"
             disabled={loading}
             className="w-full py-3 bg-violet-600 text-white rounded-xl text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
           >

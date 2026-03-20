@@ -13,8 +13,8 @@ export interface JWTPayload {
 }
 
 // Sign a new token
-export function signToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET!, { expiresIn: '7d' })
+export function signToken(payload: JWTPayload, expiresIn: jwt.SignOptions['expiresIn'] = '7d'): string {
+  return jwt.sign(payload, JWT_SECRET!, { expiresIn })
 }
 
 // Verify a token — returns payload or null
@@ -38,7 +38,7 @@ export async function getAuthUser(): Promise<JWTPayload | null> {
 export const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
+  sameSite: 'lax' as const,
   maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
   path: '/',
 }

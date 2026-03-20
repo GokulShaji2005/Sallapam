@@ -32,8 +32,9 @@ export default function LoginPage() {
       // }
 
       router.push('/chat')
-    } catch (e: any) {
-      setError(e.message ?? 'Login failed')
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Login failed'
+      setError(message)
     } finally {
       setLoading(false)
     }

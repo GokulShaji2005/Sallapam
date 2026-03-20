@@ -46,8 +46,9 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
       setFoundUser(json.data) // null means not found
-    } catch (err: any) {
-      setError(err.message ?? 'Search failed')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Search failed'
+      setError(message)
     } finally {
       setSearching(false)
     }
@@ -67,8 +68,9 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
       if (!json.success) throw new Error(json.error)
       onClose()
       router.push(`/chat/${json.data.chatId}`)
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to create chat')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create chat'
+      setError(message)
     } finally {
       setStarting(false)
     }
@@ -86,8 +88,9 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
       setInviteSuccess(true)
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to send invitation')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to send invitation'
+      setError(message)
     } finally {
       setInviting(false)
     }
@@ -211,7 +214,7 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
         {inviteSuccess && (
           <div className="fade-up rounded-xl p-4 text-center" style={{ background: 'rgba(62,207,142,0.08)', border: '1px solid rgba(62,207,142,0.25)' }}>
             <p className="text-sm font-medium" style={{ color: 'var(--online)' }}>✓ Invitation sent to {email}</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>They'll get a link to sign up and chat with you.</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>They&apos;ll get a link to sign up and chat with you.</p>
           </div>
         )}
       </div>
