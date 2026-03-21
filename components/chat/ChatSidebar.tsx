@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import NewChatModal from '@/components/chat/NewChatModal'
+import { useLogout } from '@/hooks/useLogout'
 
 interface Member {
   _id: string
@@ -70,12 +71,14 @@ function dedupeChatsById(items: Chat[]): Chat[] {
 
 export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
   const router = useRouter()
+  const logout = useLogout()
   const [chats, setChats] = useState<Chat[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [currentUserId, setCurrentUserId] = useState('')
   const [now, setNow] = useState(0)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   useEffect(() => {
     setNow(Date.now())
@@ -116,6 +119,16 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
     fetchCurrentUser()
     fetchChats()
   }, [fetchCurrentUser, fetchChats])
+
+  async function handleLogout() {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await logout()
+    } finally {
+      setLoggingOut(false)
+    }
+  }
 
   const initials = (name: string) => name.split(' ').map((word) => word[0]).join('').toUpperCase().slice(0, 2)
 
@@ -244,6 +257,27 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
               </button>
             )
           })}
+        </div>
+
+        <div className="p-3" style={{ borderTop: '1px solid var(--border)' }}>
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-full h-10 rounded-lg text-sm font-medium transition-all disabled:opacity-60"
+            style={{
+              background: 'var(--bg-tertiary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+            onMouseEnter={(e) => {
+              if (!loggingOut) e.currentTarget.style.background = 'var(--bg-hover)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'var(--bg-tertiary)'
+            }}
+          >
+            {loggingOut ? 'Logging out...' : 'Logout'}
+          </button>
         </div>
       </aside>
 

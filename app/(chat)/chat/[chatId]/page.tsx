@@ -54,6 +54,8 @@ function dedupeMessagesById(items: Message[]): Message[] {
   return deduped
 }
 
+const SKELETON_WIDTHS = ['95px', '138px', '112px', '164px', '124px', '146px']
+
 export default function ChatPage() {
   const router = useRouter()
   const params = useParams()
@@ -63,7 +65,6 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [page, setPage] = useState(1)
-  const [loadingChat, setLoadingChat] = useState(true)
   const [loadingMsgs, setLoadingMsgs] = useState(true)
   const [sending, setSending] = useState(false)
   const [text, setText] = useState('')
@@ -97,7 +98,6 @@ export default function ChatPage() {
       .then(json => {
         if (!json.success) { router.push('/chat'); return }
         setChat(json.data)
-        setLoadingChat(false)
       })
       .catch(() => router.push('/chat'))
   }, [chatId, router])
@@ -212,9 +212,9 @@ export default function ChatPage() {
   const showTyping = typingList.length > 0
 
   return (
-    <div className="flex flex-col h-screen" style={{ background: 'var(--bg-primary)' }}>
+    <div className="flex flex-col h-full" style={{ background: 'var(--bg-primary)' }}>
       {/* ── Header ── */}
-      <header className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
+      <header className="flex items-center gap-3 px-4 py-3 shrink-0"
         style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
         {/* Back button (mobile) */}
         <button
@@ -270,7 +270,7 @@ export default function ChatPage() {
             {[...Array(6)].map((_, i) => (
               <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
                 <div className="h-10 rounded-2xl animate-pulse" style={{
-                  width: `${Math.random() * 120 + 80}px`,
+                  width: SKELETON_WIDTHS[i] ?? '120px',
                   background: 'var(--bg-tertiary)'
                 }}/>
               </div>
@@ -315,7 +315,7 @@ export default function ChatPage() {
       </main>
 
       {/* ── Input bar ── */}
-      <footer className="flex-shrink-0 px-4 py-3" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)' }}>
+      <footer className="shrink-0 px-4 py-3" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)' }}>
         {sendError && (
           <p className="mb-2 text-xs" style={{ color: '#ef4444' }}>
             {sendError}
@@ -341,7 +341,7 @@ export default function ChatPage() {
           <button
             type="submit"
             disabled={!text.trim() || sending}
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-40"
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all disabled:opacity-40"
             style={{ background: 'var(--accent)', color: '#fff' }}
             onMouseEnter={e => { if (text.trim()) e.currentTarget.style.background = 'var(--accent-hover)' }}
             onMouseLeave={e => (e.currentTarget.style.background = 'var(--accent)')}
