@@ -36,6 +36,24 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+function dedupeMessagesById(items: Message[]): Message[] {
+  const deduped: Message[] = []
+  const indexById = new Map<string, number>()
+
+  for (const item of items) {
+    const index = indexById.get(item._id)
+    if (index === undefined) {
+      indexById.set(item._id, deduped.length)
+      deduped.push(item)
+    } else {
+      // Keep newest payload for an existing message id (status/content updates).
+      deduped[index] = item
+    }
+  }
+
+  return deduped
+}
+
 export default function ChatPage() {
   const router = useRouter()
   const params = useParams()
@@ -92,9 +110,9 @@ export default function ChatPage() {
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
       if (p === 1) {
-        setMessages(json.data.messages)
+        setMessages(dedupeMessagesById(json.data.messages))
       } else {
-        setMessages(prev => [...json.data.messages, ...prev]) // prepend older
+        setMessages(prev => dedupeMessagesById([...json.data.messages, ...prev])) // prepend older
       }
       setHasMore(json.data.hasMore)
     } finally {
@@ -114,7 +132,7 @@ export default function ChatPage() {
     if (!socket) return
 
     const onReceive = (msg: Message) => {
-      setMessages(prev => [...prev, msg])
+      setMessages(prev => dedupeMessagesById([...prev, msg]))
       markDelivered(msg._id)
     }
 
@@ -160,7 +178,7 @@ export default function ChatPage() {
       if (!json.success) {
         throw new Error(json.error ?? 'Failed to send message')
       }
-      setMessages(prev => [...prev, json.data])
+      setMessages(prev => dedupeMessagesById([...prev, json.data]))
       setText('')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send message'
