@@ -146,9 +146,15 @@ export async function POST(req: NextRequest) {
         room: chatId,
         data: message,
       }),
-    }).catch((err) => {
-      console.error('[socket emit] Failed to notify socket server:', err)
     })
+      .then(async (emitRes) => {
+        if (emitRes.ok) return
+        const details = await emitRes.text().catch(() => '')
+        console.error('[socket emit] Socket server rejected event:', emitRes.status, details)
+      })
+      .catch((err) => {
+        console.error('[socket emit] Failed to notify socket server:', err)
+      })
   }
 
   return NextResponse.json({ success: true, data: message }, { status: 201 })

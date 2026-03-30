@@ -11,6 +11,7 @@ import {
 import { io, Socket } from 'socket.io-client'
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080'
+const TOKEN_REFRESH_MS = 8 * 60 * 1000
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -39,27 +40,34 @@ export function SocketProvider({ token, children }: SocketProviderProps) {
   const [fetchedToken, setFetchedToken] = useState<string | null>(null)
   const activeToken = token ?? fetchedToken
 
+  async function requestSocketToken(): Promise<string | null> {
+    try {
+      const res = await fetch('/api/auth/socket-token', { cache: 'no-store' })
+      if (!res.ok) return null
+      const json = await res.json()
+      return json.success ? (json.data?.token ?? null) : null
+    } catch {
+      return null
+    }
+  }
+
   useEffect(() => {
     if (token) return
 
     let isMounted = true
-    fetch('/api/auth/socket-token', { cache: 'no-store' })
-      .then(async (res) => {
-        if (!res.ok) return null
-        const json = await res.json()
-        return json.success ? (json.data?.token ?? null) : null
-      })
-      .then((fetchedToken) => {
-        if (!isMounted) return
-        setFetchedToken(fetchedToken)
-      })
-      .catch(() => {
-        if (!isMounted) return
-        setFetchedToken(null)
-      })
+
+    const refreshToken = async () => {
+      const nextToken = await requestSocketToken()
+      if (!isMounted) return
+      setFetchedToken(nextToken)
+    }
+
+    refreshToken()
+    const intervalId = setInterval(refreshToken, TOKEN_REFRESH_MS)
 
     return () => {
       isMounted = false
+      clearInterval(intervalId)
     }
   }, [token])
 
@@ -93,6 +101,15 @@ export function SocketProvider({ token, children }: SocketProviderProps) {
     })
     nextSocket.on('connect_error', (err) => {
       console.error('[socket] Connection error:', err.message)
+
+      if (token) return
+      if (!/unauthorized|jwt|token|auth/i.test(err.message)) return
+
+      requestSocketToken().then((nextToken) => {
+        if (nextToken && nextToken !== fetchedToken) {
+          setFetchedToken(nextToken)
+        }
+      })
     })
 
     return () => {
@@ -101,7 +118,7 @@ export function SocketProvider({ token, children }: SocketProviderProps) {
         socketRef.current = null
       }
     }
-  }, [activeToken]) // reconnect whenever the token changes
+  }, [activeToken, token, fetchedToken]) // reconnect whenever the token changes
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import NewChatModal from '@/components/chat/NewChatModal'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { useSocket } from '@/hooks/useSocket'
 import { useLogout } from '@/hooks/useLogout'
 
 interface Member {
@@ -73,6 +74,7 @@ function dedupeChatsById(items: Chat[]): Chat[] {
 export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
   const router = useRouter()
   const logout = useLogout()
+  const { socket } = useSocket()
   const [chats, setChats] = useState<Chat[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -107,6 +109,7 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
       }
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
+      setError('')
       setChats(dedupeChatsById(json.data))
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load chats'
@@ -120,6 +123,28 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
     fetchCurrentUser()
     fetchChats()
   }, [fetchCurrentUser, fetchChats])
+
+  useEffect(() => {
+    if (!socket) return
+
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const refreshChatsSoon = () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        fetchChats()
+      }, 250)
+    }
+
+    socket.on('message:receive', refreshChatsSoon)
+    socket.on('connect', refreshChatsSoon)
+
+    return () => {
+      if (timer) clearTimeout(timer)
+      socket.off('message:receive', refreshChatsSoon)
+      socket.off('connect', refreshChatsSoon)
+    }
+  }, [socket, fetchChats])
 
   async function handleLogout() {
     if (loggingOut) return

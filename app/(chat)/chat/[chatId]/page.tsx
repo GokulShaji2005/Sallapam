@@ -170,6 +170,20 @@ export default function ChatPage() {
     }
   }, [socket, markDelivered])
 
+  // Catch up after reconnect so users don't need a manual refresh.
+  useEffect(() => {
+    if (!socket) return
+
+    const onConnect = () => {
+      fetchMessages(1)
+    }
+
+    socket.on('connect', onConnect)
+    return () => {
+      socket.off('connect', onConnect)
+    }
+  }, [socket, fetchMessages])
+
   // ── Send message ─────────────────────────────────────────────────────────
   async function handleSend(e?: React.FormEvent) {
     e?.preventDefault()
