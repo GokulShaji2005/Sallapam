@@ -4,7 +4,6 @@ import { connectToDatabase } from '@/lib/mongoose'
 import User from '@/models/User'
 import VerificationToken from '@/models/VerificationToken'
 import bcrypt from 'bcryptjs'
-import { signToken, cookieOptions, COOKIE_NAME } from '@/lib/auth'
 import { redis } from '@/lib/redis'
 import { sendEmail } from '@/lib/email'
 import { z } from 'zod'
@@ -111,23 +110,15 @@ export async function POST(req: NextRequest) {
       console.error('Signup verification email failed:', emailErr)
     }
 
-    // Issue JWT and set cookie
-    const token = signToken({
-      userId: user._id.toString(),
-      email: user.email,
-      name: user.name,
-    })
-
     const response = NextResponse.json({
       success: true,
       data: {
         userId: user._id.toString(),
         name: user.name,
         email: user.email,
+        requiresVerification: true,
       }
     }, { status: 201 })
-
-    response.cookies.set(COOKIE_NAME, token, cookieOptions)
     return response
 
   } catch (error) {

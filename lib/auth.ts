@@ -12,6 +12,24 @@ export interface JWTPayload {
   name: string
 }
 
+function isValidObjectId(value: string): boolean {
+  return /^[a-fA-F0-9]{24}$/.test(value)
+}
+
+function isValidJWTPayload(decoded: unknown): decoded is JWTPayload {
+  if (!decoded || typeof decoded !== 'object') return false
+
+  const payload = decoded as Partial<JWTPayload>
+  return (
+    typeof payload.userId === 'string' &&
+    isValidObjectId(payload.userId) &&
+    typeof payload.email === 'string' &&
+    payload.email.length > 0 &&
+    typeof payload.name === 'string' &&
+    payload.name.length > 0
+  )
+}
+
 // Sign a new token
 export function signToken(payload: JWTPayload, expiresIn: jwt.SignOptions['expiresIn'] = '7d'): string {
   return jwt.sign(payload, JWT_SECRET!, { expiresIn })
@@ -20,7 +38,9 @@ export function signToken(payload: JWTPayload, expiresIn: jwt.SignOptions['expir
 // Verify a token — returns payload or null
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET!) as JWTPayload
+    const decoded = jwt.verify(token, JWT_SECRET!)
+    if (!isValidJWTPayload(decoded)) return null
+    return decoded
   } catch {
     return null
   }

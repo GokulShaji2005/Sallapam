@@ -39,7 +39,7 @@ export default function SignupPage() {
       if (!data.success) throw new Error(data.error)
 
       // Future: await savePrivateKey(privateKey, form.password)
-      router.push('/chat')
+      router.push(`/verify-email/pending?email=${encodeURIComponent(form.email)}`)
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Signup failed'
       setError(message)
@@ -49,12 +49,12 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-2xl shadow-sm w-full max-w-md border border-gray-100">
-        <h1 className="text-2xl font-medium text-gray-900 mb-6">Create account</h1>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <div className="p-8 rounded-2xl shadow-sm w-full max-w-md border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+        <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>Create account</h1>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div className="mb-4 p-3 rounded-lg text-sm border" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: 'rgb(239, 68, 68)' }}>
             {error}
           </div>
         )}
@@ -63,55 +63,62 @@ export default function SignupPage() {
           className="space-y-4"
         >
           <input
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-violet-400 placeholder:text-gray-500"
+            className="w-full px-4 py-3 border rounded-xl text-sm outline-none"
             placeholder="Full name"
             value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             required
+            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
           />
           <input
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-violet-400 placeholder:text-gray-500"
+            className="w-full px-4 py-3 border rounded-xl text-sm outline-none"
             placeholder="Email"
             type="email"
             value={form.email}
             onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
             required
+            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
           />
           <div className="relative">
             <input
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-violet-400 placeholder:text-gray-500"
+              className="w-full px-4 py-3 border rounded-xl text-sm outline-none"
               placeholder="Phone number (e.g. +91...)"
               type="tel"
               value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               required
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
             />
             {/* Small badge to indicate phone is not verified yet */}
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs px-2 py-0.5 rounded-full" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-tertiary)' }}>
               saved for later
             </span>
           </div>
           <input
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-violet-400 placeholder:text-gray-500"
+            className="w-full px-4 py-3 border rounded-xl text-sm outline-none"
             placeholder="Password (min 8 characters)"
             type="password"
             value={form.password}
             onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
             required
+            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
             minLength={8}
           />
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-violet-600 text-white rounded-xl text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
+            className="w-full py-3 text-white rounded-xl text-sm font-medium disabled:opacity-50"
+            style={{ backgroundColor: 'var(--accent)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--accent-hover)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--accent)')}
           >
             {loading ? 'Creating account...' : 'Create Account'}
           </button>
 
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
             Already have an account?{' '}
-            <a href="/login" className="text-violet-600 hover:underline">Log in</a>
+            <a href="/login" className="hover:underline" style={{ color: 'var(--accent)' }}>Log in</a>
           </p>
         </form>
 

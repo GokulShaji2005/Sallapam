@@ -67,6 +67,17 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (!user.isVerified) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'EMAIL_NOT_VERIFIED',
+          error: 'Please verify your email before logging in',
+        },
+        { status: 403 }
+      )
+    }
+
     // Clear rate limit on successful login
     await redis.del(rateLimitKey)
 
