@@ -1,10 +1,19 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 type Status = 'loading' | 'success' | 'error' | 'no-token'
+
+async function readJsonSafely(res: Response): Promise<Record<string, unknown> | null> {
+  const text = await res.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
 
 export function VerifyEmailClient() {
   const searchParams = useSearchParams()
@@ -20,12 +29,12 @@ export function VerifyEmailClient() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
     })
-      .then(r => r.json())
+      .then(readJsonSafely)
       .then(json => {
-        if (json.success) setStatus('success')
+        if (json?.success) setStatus('success')
         else {
           setStatus('error')
-          setErrorMsg(json.error ?? 'Verification failed')
+          setErrorMsg((json?.error as string) ?? 'Verification failed')
         }
       })
       .catch(() => {

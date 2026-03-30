@@ -2,6 +2,16 @@ import { cookies } from 'next/headers'
 import EmailVerificationBanner from '@/components/EmailVerificationBanner'
 import { SocketProvider } from '@/hooks/useSocket'
 
+async function readJsonSafely(res: Response): Promise<Record<string, unknown> | null> {
+  const text = await res.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
 async function getIsVerified(): Promise<boolean> {
   try {
     // Read JWT from cookie to check isVerified without an extra DB call
@@ -11,8 +21,9 @@ async function getIsVerified(): Promise<boolean> {
       headers: { cookie: (await cookies()).toString() },
     })
     if (!res.ok) return true // if we can't check, don't block the user with the banner
-    const json = await res.json()
-    return json.data?.isVerified ?? true
+    const json = await readJsonSafely(res)
+    const data = json?.data as { isVerified?: boolean } | undefined
+    return data?.isVerified ?? true
   } catch {
     return true
   }

@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongoose'
 import { getAuthUser } from '@/lib/auth'
 import Chat from '@/models/Chat'
+import '@/models/Message'
+import '@/models/User'
 import { z } from 'zod'
 import mongoose from 'mongoose'
 

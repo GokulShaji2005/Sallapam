@@ -27,6 +27,16 @@ interface Chat {
   memberIds: Member[]
 }
 
+async function readJsonSafely(res: Response): Promise<Record<string, unknown> | null> {
+  const text = await res.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
 function getSenderId(msg: Message): string {
   if (typeof msg.senderId === 'string') return msg.senderId
   return msg.senderId._id
@@ -80,10 +90,11 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetch('/api/auth/me')
-      .then(r => r.json())
+      .then(readJsonSafely)
       .then(json => {
-        if (json.success && json.data?._id) {
-          setCurrentUserId(json.data._id)
+        const data = json?.data as { _id?: string } | undefined
+        if (json?.success && data?._id) {
+          setCurrentUserId(data._id)
         }
       })
       .catch(() => {
@@ -94,10 +105,10 @@ export default function ChatPage() {
   // ── Fetch chat metadata ──────────────────────────────────────────────────
   useEffect(() => {
     fetch(`/api/chats/${chatId}`)
-      .then(r => r.json())
+      .then(readJsonSafely)
       .then(json => {
-        if (!json.success) { router.push('/chat'); return }
-        setChat(json.data)
+        if (!json?.success) { router.push('/chat'); return }
+        setChat((json.data as Chat) ?? null)
       })
       .catch(() => router.push('/chat'))
   }, [chatId, router])
@@ -107,14 +118,16 @@ export default function ChatPage() {
     setLoadingMsgs(true)
     try {
       const res = await fetch(`/api/messages?chatId=${chatId}&page=${p}`)
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
+      const json = await readJsonSafely(res)
+      if (!json?.success) throw new Error((json?.error as string) ?? 'Failed to fetch messages')
+      const data = json.data as { messages: Message[]; hasMore: boolean } | undefined
+      if (!data) throw new Error('Invalid response from server')
       if (p === 1) {
-        setMessages(dedupeMessagesById(json.data.messages))
+        setMessages(dedupeMessagesById(data.messages))
       } else {
-        setMessages(prev => dedupeMessagesById([...json.data.messages, ...prev])) // prepend older
+        setMessages(prev => dedupeMessagesById([...data.messages, ...prev])) // prepend older
       }
-      setHasMore(json.data.hasMore)
+      setHasMore(data.hasMore)
     } finally {
       setLoadingMsgs(false)
     }
@@ -174,11 +187,12 @@ export default function ChatPage() {
           nonce: crypto.randomUUID(),
         }),
       })
-      const json = await res.json()
-      if (!json.success) {
-        throw new Error(json.error ?? 'Failed to send message')
+      const json = await readJsonSafely(res)
+      if (!json?.success) {
+        throw new Error((json?.error as string) ?? 'Failed to send message')
       }
-      setMessages(prev => dedupeMessagesById([...prev, json.data]))
+      if (!json.data) throw new Error('Invalid response from server')
+      setMessages(prev => dedupeMessagesById([...prev, json.data as Message]))
       setText('')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send message'
