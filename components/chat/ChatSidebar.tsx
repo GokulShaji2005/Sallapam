@@ -146,6 +146,26 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
     }
   }, [socket, fetchChats])
 
+  useEffect(() => {
+    if (!socket || chats.length === 0) return
+
+    const roomIds = chats.map((chat) => chat._id)
+
+    const rejoin = () => {
+      socket.emit('chat:rejoin', roomIds)
+    }
+
+    // Join all known chat rooms so sidebar can receive room-scoped realtime events.
+    if (socket.connected) {
+      rejoin()
+    }
+
+    socket.on('connect', rejoin)
+    return () => {
+      socket.off('connect', rejoin)
+    }
+  }, [socket, chats])
+
   async function handleLogout() {
     if (loggingOut) return
     setLoggingOut(true)
