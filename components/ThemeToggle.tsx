@@ -2,13 +2,25 @@
 
 import { useTheme } from "./ThemeProvider";
 
-export function ThemeToggle() {
+interface ThemeToggleProps {
+  fixed?: boolean;
+  className?: string;
+}
+
+export function ThemeToggle({ fixed = true, className = "" }: ThemeToggleProps) {
   const { theme, toggleTheme } = useTheme();
+  const classes = [
+    fixed ? "fixed top-4 right-4 z-50" : "",
+    "p-2.5 rounded-lg bg-bg-secondary border border-border hover:bg-bg-hover transition-colors",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <button
       onClick={toggleTheme}
-      className="fixed top-4 right-4 z-50 p-2.5 rounded-lg bg-bg-secondary border border-border hover:bg-bg-hover transition-colors"
+      className={classes}
       aria-label="Toggle theme"
     >
       {theme === "light" ? (

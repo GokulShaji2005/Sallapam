@@ -4,7 +4,7 @@ import ChatSidebar from '@/components/chat/ChatSidebar'
 
 export default function ChatListPage() {
   return (
-    <div className="flex h-screen" style={{ background: 'var(--bg-primary)' }}>
+    <div className="flex h-dvh" style={{ background: 'var(--bg-primary)' }}>
       <ChatSidebar />
 
       {/* ── Empty state (desktop only) ── */}

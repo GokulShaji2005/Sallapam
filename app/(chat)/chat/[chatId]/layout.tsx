@@ -12,7 +12,7 @@ export default async function ChatDetailLayout(
   const { chatId } = await params
 
   return (
-    <div className="h-screen md:flex" style={{ background: 'var(--bg-primary)' }}>
+    <div className="h-dvh md:flex" style={{ background: 'var(--bg-primary)' }}>
       <div className="hidden md:block">
         <ChatSidebar activeChatId={chatId} />
       </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import NewChatModal from '@/components/chat/NewChatModal'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { useLogout } from '@/hooks/useLogout'
 
 interface Member {
@@ -135,24 +136,27 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
   return (
     <>
       <aside
-        className="flex h-full flex-col w-full md:w-80 shrink-0"
+        className="flex h-full min-h-dvh w-full max-w-full shrink-0 flex-col md:w-80"
         style={{ background: 'var(--bg-secondary)', borderRight: '1px solid var(--border)' }}
       >
-        <div className="flex items-center justify-between px-4 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-2">
+        <div
+          className="flex items-center justify-between gap-3 px-3 py-3 sm:px-4 sm:py-4"
+          style={{ borderBottom: '1px solid var(--border)', paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
+        >
+          <div className="min-w-0 flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent)' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <span className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>Sallapam</span>
+            <span className="truncate font-semibold text-base" style={{ color: 'var(--text-primary)' }}>Sallapam</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="shrink-0 flex items-center gap-2">
             <button
               onClick={() => router.push('/chat/group/new')}
               title="Create Group"
-              className="px-2.5 h-8 rounded-lg text-xs font-medium transition-all"
+              className="h-9 min-w-17 rounded-lg px-3 text-xs font-medium transition-all"
               style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
@@ -162,7 +166,7 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
             <button
               onClick={() => setShowModal(true)}
               title="New Chat"
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+              className="h-9 w-9 rounded-lg flex items-center justify-center transition-all"
               style={{ background: 'var(--accent)', color: '#fff' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
@@ -171,6 +175,7 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
                 <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </button>
+            <ThemeToggle fixed={false} className="md:hidden inline-flex" />
           </div>
         </div>
 
@@ -222,7 +227,7 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
               <button
                 key={chat._id}
                 onClick={() => router.push(`/chat/${chat._id}`)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left transition-all"
+                className="w-full flex items-center gap-3 px-3 py-3 text-left transition-all sm:px-4"
                 style={{
                   borderBottom: '1px solid var(--border)',
                   background: isActive ? 'var(--bg-hover)' : 'transparent',
@@ -259,7 +264,10 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
           })}
         </div>
 
-        <div className="p-3" style={{ borderTop: '1px solid var(--border)' }}>
+        <div
+          className="p-3"
+          style={{ borderTop: '1px solid var(--border)', paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        >
           <button
             onClick={handleLogout}
             disabled={loggingOut}
