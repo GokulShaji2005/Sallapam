@@ -137,11 +137,13 @@ export default function ChatSidebar({ activeChatId }: ChatSidebarProps) {
     }
 
     socket.on('message:receive', refreshChatsSoon)
+    socket.on('message:delete', refreshChatsSoon)
     socket.on('connect', refreshChatsSoon)
 
     return () => {
       if (timer) clearTimeout(timer)
       socket.off('message:receive', refreshChatsSoon)
+      socket.off('message:delete', refreshChatsSoon)
       socket.off('connect', refreshChatsSoon)
     }
   }, [socket, fetchChats])

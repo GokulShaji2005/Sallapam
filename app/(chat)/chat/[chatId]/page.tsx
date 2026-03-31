@@ -39,7 +39,16 @@ async function readJsonSafely(res: Response): Promise<Record<string, unknown> | 
 
 function getSenderId(msg: Message): string {
   if (typeof msg.senderId === 'string') return msg.senderId
-  return msg.senderId._id
+  return normalizeId(msg.senderId._id)
+}
+
+function normalizeId(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && '_id' in value) {
+    const nested = (value as { _id?: unknown })._id
+    return typeof nested === 'string' ? nested : ''
+  }
+  return ''
 }
 
 function formatTime(iso: string) {
@@ -77,6 +86,10 @@ export default function ChatPage() {
   const [page, setPage] = useState(1)
   const [loadingMsgs, setLoadingMsgs] = useState(true)
   const [sending, setSending] = useState(false)
+  const [deletingMessageId, setDeletingMessageId] = useState('')
+  const [activeDesktopMenuId, setActiveDesktopMenuId] = useState('')
+  const [mobileActionMessageId, setMobileActionMessageId] = useState('')
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [text, setText] = useState('')
   const [sendError, setSendError] = useState('')
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
@@ -84,6 +97,9 @@ export default function ChatPage() {
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const LONG_PRESS_MS = 550
 
   // Socket — join/leave room, sendTyping, markDelivered
   const { socket, isConnected, sendTyping, markDelivered } = useChat(chatId)
@@ -94,12 +110,26 @@ export default function ChatPage() {
       .then(json => {
         const data = json?.data as { _id?: string } | undefined
         if (json?.success && data?._id) {
-          setCurrentUserId(data._id)
+          setCurrentUserId(normalizeId(data._id))
         }
       })
       .catch(() => {
         // Non-fatal: messages still load, but ownership alignment may be degraded.
       })
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const media = window.matchMedia('(max-width: 767px)')
+    const updateViewport = () => setIsMobileViewport(media.matches)
+
+    updateViewport()
+    media.addEventListener('change', updateViewport)
+
+    return () => {
+      media.removeEventListener('change', updateViewport)
+    }
   }, [])
 
   // ── Fetch chat metadata ──────────────────────────────────────────────────
@@ -149,6 +179,10 @@ export default function ChatPage() {
       markDelivered(msg._id)
     }
 
+    const onDelete = ({ messageId }: { messageId: string }) => {
+      setMessages(prev => prev.filter((msg) => msg._id !== messageId))
+    }
+
     const onTyping = ({ userId }: { userId: string; chatId: string }) => {
       setTypingUsers(prev => new Set(prev).add(userId))
       // Clear typing indicator after 2s of silence
@@ -162,10 +196,12 @@ export default function ChatPage() {
     }
 
     socket.on('message:receive', onReceive)
+    socket.on('message:delete', onDelete)
     socket.on('chat:typing', onTyping)
 
     return () => {
       socket.off('message:receive', onReceive)
+      socket.off('message:delete', onDelete)
       socket.off('chat:typing', onTyping)
     }
   }, [socket, markDelivered])
@@ -214,6 +250,43 @@ export default function ChatPage() {
     } finally {
       setSending(false)
     }
+  }
+
+  async function handleDeleteMessage(messageId: string) {
+    if (deletingMessageId) return
+    setActiveDesktopMenuId('')
+    setMobileActionMessageId('')
+    setDeletingMessageId(messageId)
+    setSendError('')
+    try {
+      const res = await fetch(`/api/messages/${messageId}`, {
+        method: 'DELETE',
+      })
+      const json = await readJsonSafely(res)
+      if (!json?.success) {
+        throw new Error((json?.error as string) ?? 'Failed to delete message')
+      }
+      setMessages(prev => prev.filter((msg) => msg._id !== messageId))
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete message'
+      setSendError(message)
+    } finally {
+      setDeletingMessageId('')
+    }
+  }
+
+  function startLongPress(mine: boolean, messageId: string) {
+    if (!isMobileViewport || !mine || deletingMessageId) return
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    longPressTimer.current = setTimeout(() => {
+      setMobileActionMessageId(messageId)
+    }, LONG_PRESS_MS)
+  }
+
+  function cancelLongPress() {
+    if (!longPressTimer.current) return
+    clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
   }
 
   // Typing indicator — debounced emit
@@ -278,7 +351,12 @@ export default function ChatPage() {
       </header>
 
       {/* ── Message thread ── */}
-      <main className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+      <main
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-2"
+        onClick={() => {
+          if (!isMobileViewport && activeDesktopMenuId) setActiveDesktopMenuId('')
+        }}
+      >
         {/* Load more */}
         {hasMore && (
           <div className="flex justify-center mb-2">
@@ -307,11 +385,16 @@ export default function ChatPage() {
         )}
 
         {messages.map(msg => {
-          const mine = getSenderId(msg) === currentUserId
+          const mine = normalizeId(getSenderId(msg)) === normalizeId(currentUserId)
+          const isDeleting = deletingMessageId === msg._id
+          const isDesktopMenuOpen = activeDesktopMenuId === msg._id
           return (
             <div key={msg._id} className={`flex fade-up ${mine ? 'justify-end' : 'justify-start'}`}>
               <div
-                className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl text-sm leading-relaxed"
+                className="relative max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl text-sm leading-relaxed"
+                onTouchStart={() => startLongPress(mine, msg._id)}
+                onTouchEnd={cancelLongPress}
+                onTouchCancel={cancelLongPress}
                 style={{
                   background: mine ? 'var(--bubble-mine)' : 'var(--bubble-theirs)',
                   color: 'var(--text-primary)',
@@ -320,8 +403,47 @@ export default function ChatPage() {
                   borderBottomLeftRadius: mine ? '16px' : '4px',
                 }}
               >
+                {mine && !isMobileViewport && (
+                  <div className="flex justify-end mb-1">
+                    <button
+                      type="button"
+                      aria-label="Message actions"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveDesktopMenuId((prev) => prev === msg._id ? '' : msg._id)
+                      }}
+                      className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                      style={{ color: 'var(--text-secondary)' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <circle cx="5" cy="12" r="1.6" fill="currentColor"/>
+                        <circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+                        <circle cx="19" cy="12" r="1.6" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </div>
+                )}
                 <p>🔒 {msg.encryptedContent}</p>
                 <p className="text-right text-xs mt-1 opacity-60">{formatTime(msg.sentAt)}</p>
+                {mine && !isMobileViewport && isDesktopMenuOpen && (
+                  <div
+                    className="absolute top-10 right-0 min-w-32 rounded-lg py-1 z-20"
+                    style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      disabled={!!deletingMessageId}
+                      onClick={() => handleDeleteMessage(msg._id)}
+                      className="w-full text-left px-3 py-2 text-sm transition-colors disabled:opacity-40"
+                      style={{ color: '#ef4444' }}
+                    >
+                      {isDeleting ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )
@@ -341,6 +463,38 @@ export default function ChatPage() {
 
         <div ref={bottomRef}/>
       </main>
+
+      {isMobileViewport && mobileActionMessageId && (
+        <div
+          className="fixed inset-0 z-40 flex items-end"
+          style={{ background: 'rgba(0, 0, 0, 0.38)' }}
+          onClick={() => setMobileActionMessageId('')}
+        >
+          <div
+            className="w-full p-4 rounded-t-2xl"
+            style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              disabled={!!deletingMessageId}
+              onClick={() => handleDeleteMessage(mobileActionMessageId)}
+              className="w-full h-11 rounded-lg text-sm font-medium transition-all disabled:opacity-40"
+              style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+            >
+              {deletingMessageId === mobileActionMessageId ? 'Deleting...' : 'Delete message'}
+            </button>
+            <button
+              type="button"
+              className="w-full h-11 rounded-lg text-sm mt-2"
+              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              onClick={() => setMobileActionMessageId('')}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Input bar ── */}
       <footer className="shrink-0 px-4 py-3" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)' }}>
